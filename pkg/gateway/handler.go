@@ -86,8 +86,8 @@ func NewHandler(region string, catalog *catalog.Catalog, multipartTracker multip
 	}
 
 	// setup routes
-	var h http.Handler
-	h = &handler{
+	var operationHandler http.Handler
+	operationHandler = &handler{
 		sc:                 sc,
 		ServerErrorHandler: nil,
 		operationHandlers: map[operations.OperationID]http.Handler{
@@ -110,19 +110,19 @@ func NewHandler(region string, catalog *catalog.Catalog, multipartTracker multip
 		auditLogLevel,
 		traceRequestHeaders)
 
-	h = loggingMiddleware(h)
+	operationHandler = loggingMiddleware(operationHandler)
 
-	h = EnrichWithOperation(sc,
+	operationHandler = EnrichWithOperation(sc,
 		DurationHandler(
 			AuthenticationHandler(authService, EnrichWithParts(bareDomains,
 				EnrichWithRepositoryOrFallback(catalog, authService, fallbackHandler,
 					OperationLookupHandler(
-						h))))))
+						operationHandler))))))
 	logging.ContextUnavailable().WithFields(logging.Fields{
 		"s3_bare_domain": bareDomains,
 		"s3_region":      region,
 	}).Info("initialized S3 Gateway handler")
-	return h
+	return operationHandler
 }
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
